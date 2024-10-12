@@ -1,3 +1,7 @@
+# The following code is designed to run few commands on the provided list of AIX servers and return the HTML report file.
+# The commands are "hostname", "uptime", "sar 1 5", "vmstat", "df", "iostat -d 1 5"
+
+
 import os
 import logging
 from datetime import datetime
@@ -6,32 +10,24 @@ import sys
 import win32
 import json
 
-from Scripts.Microbots.logBot import write_log
 
 today_date = datetime.now().strftime("%d-%m-%Y")
-
 parent_directory = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 
 try:
-    conf_path = os.path.join(parent_directory, "Conf", "config", "config.json")
+    conf_path = os.path.join(parent_directory, "config.json")
     with open(conf_path, 'r') as config_reader:
         data = json.load(config_reader)
 except Exception as error:
     print(f'(ERROR) - {str(error)}')
     write_log(status="ERROR", message=f"An error occurred: {str(error)}")
 
-script_path = os.path.join(parent_directory, "Scripts")
-sys.path.append(script_path)
-logFilePath = os.path.join(parent_directory, "log")
+
 output_folder_path = os.path.join(parent_directory, "Output")
 sys.path.append(output_folder_path)
 os.makedirs(output_folder_path, exist_ok=True)
-server_list_file = os.path.join(parent_directory, 'Input', 'servers.txt')
-
-from Scripts.Microbots.cred import get_cred
-from Scripts.Microbots.license import license_validation
-from Scripts.Microbots.email_bot import send_email
+server_list_file = os.path.join(parent_directory,'servers.txt')
 
 
 # Function to execute a command on the remote server
@@ -76,11 +72,9 @@ results = []
 try:
     if license_validation():
         print(f"license is valid")
-        write_log(status="SUCCESS", message=f"license is valid")
         server_list = read_servers_from_file(server_list_file)
         for server in server_list:
             print(f"Connecting to {server}...")
-            write_log(status="SUCCESS", message=f"Connecting to {server}...")
             # Create an SSH client
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -102,14 +96,13 @@ try:
 
             except Exception as e:
                 print(f"Error connecting to {server}: {str(e)}")
-                write_log(status="ERROR", message=f"Error connecting to {server}: {str(e)}")
             finally:
                 # Close the SSH connection
                 ssh.close()
 
 except Exception as e:
     print(f"An error occurred: {e}")
-    write_log(status="ERROR", message=f"An error occurred: {e}")
+
 
 # Generate HTML content
 html_content = """
@@ -206,7 +199,6 @@ with open(output_file_path, 'w') as html_file:
     try:
         html_file.write(html_content)
         print(f"AIX_Capacity_Result.html has been generated.")
-        write_log(status="SUCCESS", message="AIX_Capacity_Result.html has been generated.")
         attachment_file = output_file_path
         sender_mail = data['sender_email']
         receiver_mail = data['receiver_email']
@@ -216,4 +208,4 @@ with open(output_file_path, 'w') as html_file:
         send_email(sender_mail, receiver_mail, mailSubject, attachment_file, smtpServer, smtpPort)
     except Exception as error:
         print(f"Error occurred: {error}")
-        write_log(status="ERROR", message=f"Error occurred: {error}")
+        
